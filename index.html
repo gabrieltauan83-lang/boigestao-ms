@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2C5E3A">
+<meta name="description" content="Gestão pecuária offline: rebanho, pesos, dietas e custos.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>BoiGestão MS</title>
+<style>
+:root{--primary:#2C5E3A;--dark:#1B3E25;--accent:#E8F5E9;--text:#2D3748;--muted:#718096;--bg:#F4F7F4;--danger:#E53E3E}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+.app{width:100%;max-width:520px;min-height:100vh;margin:auto;display:flex;flex-direction:column;background:var(--bg);position:relative}
+header{background:var(--primary);color:white;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+header h1{font-size:1.2rem}header span{font-size:.75rem;background:#ffffff30;padding:5px 9px;border-radius:20px}
+main{flex:1;padding:15px 15px 88px;overflow:auto}
+.tab{display:none}.tab.active{display:block}
+.card,.stat{background:white;border:1px solid #E2E8F0;border-radius:15px;padding:15px;margin-bottom:14px;box-shadow:0 2px 8px #00000008}
+.card h2{font-size:.95rem;color:var(--dark);margin-bottom:12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat{margin:0;min-height:88px;display:flex;flex-direction:column;justify-content:space-between}
+.stat small{font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase}
+.stat strong{font-size:1.25rem;color:var(--primary);margin-top:5px}
+.group{margin-bottom:12px}label{display:block;font-size:.8rem;font-weight:650;margin-bottom:5px}
+input,select{width:100%;padding:11px 12px;border:1px solid #CBD5E0;border-radius:9px;background:#F8FAFC;font-size:16px;color:var(--text)}
+button{cursor:pointer}.btn{width:100%;border:0;border-radius:10px;padding:12px 15px;background:var(--primary);color:white;font-weight:700;font-size:.95rem}
+.btn-danger{width:auto;background:var(--danger);padding:7px 9px;font-size:.75rem}
+.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.8rem;white-space:nowrap}
+th{background:var(--accent);color:var(--dark);padding:9px 8px;text-align:left}
+td{padding:9px 8px;border-bottom:1px solid #E2E8F0}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,520px);height:66px;background:white;border-top:1px solid #E2E8F0;display:flex;justify-content:space-around;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:white;color:var(--muted);font-size:.7rem;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+nav button.active{color:var(--primary)}nav svg{width:21px;height:21px;fill:currentColor}
+.empty{text-align:center;color:var(--muted);padding:20px}
+.note{font-size:.78rem;color:var(--muted);line-height:1.45;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+<header><h1>BoiGestão MS</h1><span id="status">Offline pronto</span></header>
+<main>
+<section id="tab-dashboard" class="tab active">
+<div class="stats">
+<div class="stat"><small>Total de cabeças</small><strong id="kpi-total">0</strong></div>
+<div class="stat"><small>Peso médio geral</small><strong id="kpi-peso">0 kg</strong></div>
+<div class="stat"><small>Consumo MS total</small><strong id="kpi-ms">0 kg/d</strong></div>
+<div class="stat"><small>Custo diário estimado</small><strong id="kpi-custo">R$ 0,00</strong></div>
+</div>
+<div class="card"><h2>Resumo por categoria</h2><div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Qtd.</th><th>Peso médio</th><th>MS total</th></tr></thead><tbody id="dashboard-tbody"></tbody></table></div></div>
+<p class="note">Os valores de consumo e custo são estimativas de planejamento. Ajuste os percentuais e a dieta conforme categoria, alimento, matéria seca e orientação técnica.</p>
+</section>
+<section id="tab-cadastro" class="tab">
+<div class="card"><h2>Novo animal / lote</h2>
+<form id="cattle-form">
+<div class="group"><label for="c-id">Brinco / identificação</label><input id="c-id" placeholder="Ex.: BR-010" required></div>
+<div class="group"><label for="c-name">Nome / lote</label><input id="c-name" placeholder="Ex.: Mimosa"></div>
+<div class="group"><label for="c-cat">Categoria</label><select id="c-cat"><option>Recria</option><option>Terminação (Engorda)</option><option>Vaca Reprodução</option><option>Touro</option></select></div>
+<div class="group"><label for="c-weight">Peso atual (kg)</label><input id="c-weight" type="number" min="1" step=".1" placeholder="Ex.: 350" required></div>
+<button class="btn" type="submit">Cadastrar animal</button>
+</form></div>
+<div class="card"><h2>Rebanho cadastrado (<span id="count">0</span>)</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Nome</th><th>Categoria</th><th>Peso</th><th>Ação</th></tr></thead><tbody id="cattle-tbody"></tbody></table></div></div>
+</section>
+<section id="tab-dieta" class="tab">
+<div class="card"><h2>Planejamento nutricional estimado</h2><div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Qtd.</th><th>Peso médio</th><th>MS total</th><th>Custo/dia</th></tr></thead><tbody id="diet-tbody"></tbody></table></div></div>
+<div class="card"><h2>Premissas atuais</h2><p class="note">Recria: 2,5% do peso vivo em MS; terminação: 2,3%; vacas: 2,0%; touros: 1,8%. Simulação de dieta: 70% da MS via silagem (35% MS) e 30% via concentrado (90% MS). Não substitui formulação nutricional específica.</p></div>
+</section>
+<section id="tab-insumos" class="tab">
+<div class="card"><h2>Preço dos insumos</h2>
+<div class="group"><label for="silage">Silagem (R$/kg na matéria natural)</label><input id="silage" type="number" min="0" step=".01"></div>
+<div class="group"><label for="feed">Ração / concentrado (R$/kg)</label><input id="feed" type="number" min="0" step=".01"></div>
+<div class="group"><label for="mineral">Sal mineral (R$/kg)</label><input id="mineral" type="number" min="0" step=".01"></div>
+<button class="btn" id="save-prices" type="button">Salvar preços</button>
+<p class="note">O preço do sal mineral fica registrado, mas não entra na estimativa atual da dieta 70/30.</p>
+</div>
+</section>
+</main>
+<nav>
+<button class="active" data-tab="dashboard"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg>Painel</button>
+<button data-tab="cadastro"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m-2 11h-4v4h-2v-4H7v-2h4V8h2v4h4z"/></svg>Gado</button>
+<button data-tab="dieta"><svg viewBox="0 0 24 24"><path d="M4 3h16v18H4zm3 4v2h10V7zm0 4v2h10v-2zm0 4v2h7v-2z"/></svg>Dieta</button>
+<button data-tab="insumos"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m1 5v5.4l4 2.4-1 1.7-5-3V7z"/></svg>Insumos</button>
+</nav>
+</div>
+<script>
+const KEY='boigestao_cattle_v2', PRICE='boigestao_prices_v2';
+let cattle=JSON.parse(localStorage.getItem(KEY)||'null')||[
+{id:'BR-001',name:'Mimosa',category:'Vaca Reprodução',weight:450},
+{id:'BR-002',name:'Campeão',category:'Touro',weight:680}
+];
+let prices=JSON.parse(localStorage.getItem(PRICE)||'null')||{silage:.35,feed:2.50,mineral:6};
+const $=id=>document.getElementById(id);
+const cats=['Recria','Terminação (Engorda)','Vaca Reprodução','Touro'];
+const money=n=>'R$ '+n.toFixed(2).replace('.',',');
+function save(){localStorage.setItem(KEY,JSON.stringify(cattle));localStorage.setItem(PRICE,JSON.stringify(prices))}
+function calc(){
+ let totalMS=0,totalCost=0,totalWeight=0;
+ const rows=cats.map(cat=>{
+  const a=cattle.filter(x=>x.category===cat),q=a.length,w=a.reduce((s,x)=>s+x.weight,0),avg=q?w/q:0;
+  const pct={'Recria':.025,'Terminação (Engorda)':.023,'Vaca Reprodução':.020,'Touro':.018}[cat];
+  const ms=w*pct, silageMN=ms*.70/.35, feedMN=ms*.30/.90;
+  const cost=silageMN*prices.silage+feedMN*prices.feed;
+  totalMS+=ms;totalCost+=cost;totalWeight+=w;
+  return {cat,q,avg,ms,cost};
+ });
+ $('kpi-total').textContent=cattle.length;
+ $('kpi-peso').textContent=(cattle.length?totalWeight/cattle.length:0).toFixed(1)+' kg';
+ $('kpi-ms').textContent=totalMS.toFixed(1)+' kg/d';
+ $('kpi-custo').textContent=money(totalCost);
+ $('dashboard-tbody').innerHTML=rows.map(r=>`<tr><td>${r.cat}</td><td>${r.q}</td><td>${r.avg.toFixed(1)} kg</td><td>${r.ms.toFixed(1)} kg</td></tr>`).join('');
+ $('diet-tbody').innerHTML=rows.map(r=>`<tr><td>${r.cat}</td><td>${r.q}</td><td>${r.avg.toFixed(1)} kg</td><td>${r.ms.toFixed(1)} kg</td><td>${money(r.cost)}</td></tr>`).join('');
+}
+function render(){
+ $('count').textContent=cattle.length;
+ $('cattle-tbody').innerHTML=cattle.length?cattle.map((a,i)=>`<tr><td><b>${escapeHTML(a.id)}</b></td><td>${escapeHTML(a.name)}</td><td>${escapeHTML(a.category)}</td><td>${a.weight} kg</td><td><button class="btn btn-danger" data-delete="${i}">Excluir</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhum animal cadastrado.</td></tr>';
+ calc();save();
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id==='tab-'+b.dataset.tab))}));
+$('cattle-form').addEventListener('submit',e=>{e.preventDefault();const id=$('c-id').value.trim();if(cattle.some(a=>a.id.toLowerCase()===id.toLowerCase())){alert('Já existe um animal com essa identificação.');return}cattle.push({id,name:$('c-name').value.trim()||'Sem Nome',category:$('c-cat').value,weight:Number($('c-weight').value)});e.target.reset();render()});
+$('cattle-tbody').addEventListener('click',e=>{const b=e.target.closest('[data-delete]');if(b&&confirm('Excluir este animal do cadastro?')){cattle.splice(Number(b.dataset.delete),1);render()}});
+$('save-prices').addEventListener('click',()=>{prices={silage:Number($('silage').value)||0,feed:Number($('feed').value)||0,mineral:Number($('mineral').value)||0};render();alert('Preços salvos.')});
+$('silage').value=prices.silage;$('feed').value=prices.feed;$('mineral').value=prices.mineral;
+render();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(()=>{$('status').textContent='Offline disponível'}).catch(()=>{$('status').textContent='Modo navegador'}))}
+</script>
+</body></html>
